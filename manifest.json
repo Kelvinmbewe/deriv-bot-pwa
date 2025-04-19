@@ -1,0 +1,14 @@
+
+{
+  "name": "Deriv Auto-Trader Bot",
+  "short_name": "DerivBot",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "description": "Auto-Trading Bot for Deriv Synthetic Indices",
+  "icons": [{
+    "src": "icon.png",
+    "sizes": "192x192",
+    "type": "image/png"
+  }]
+}
