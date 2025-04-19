@@ -1,30 +1,29 @@
 
 const config = {
-  apiToken: '',
-  symbol: 'R_10',
-  stake: 1.0,
-  takeProfit: 2.0,
-  stopLoss: 2.0,
-  maxTradesPerDay: 5,
-  dailyProfitCap: 10.0,
-  dailyLossCap: 10.0,
-  emaFast: 10,
-  emaSlow: 20,
-  rsiPeriod: 14
+  apiToken: '', symbol: 'R_10', stake: 1.0, takeProfit: 2.0, stopLoss: 2.0,
+  maxTradesPerDay: 5, dailyProfitCap: 10.0, dailyLossCap: 10.0, emaFast: 10, emaSlow: 20, rsiPeriod: 14
 };
 
-let tradeCount = 0;
-let dailyProfit = 0;
-let dailyLoss = 0;
-let activeTrade = null;
-let tradeLog = [];
-let priceHistory = [];
-let derivSocket;
+let tradeCount = 0, dailyProfit = 0, dailyLoss = 0, activeTrade = null, tradeLog = [], priceHistory = [], derivSocket;
 
-function log(message) {
-  const logBox = document.getElementById("log");
-  logBox.textContent += message + "\n";
-  logBox.scrollTop = logBox.scrollHeight;
+document.getElementById('tradeForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  config.apiToken = document.getElementById('apiToken').value;
+  config.symbol = document.getElementById('symbol').value;
+  config.stake = parseFloat(document.getElementById('stake').value);
+  config.takeProfit = parseFloat(document.getElementById('takeProfit').value);
+  config.stopLoss = parseFloat(document.getElementById('stopLoss').value);
+  config.maxTradesPerDay = parseInt(document.getElementById('maxTradesPerDay').value);
+  config.dailyProfitCap = parseFloat(document.getElementById('dailyProfitCap').value);
+  config.dailyLossCap = parseFloat(document.getElementById('dailyLossCap').value);
+  config.emaFast = parseInt(document.getElementById('emaFast').value);
+  config.emaSlow = parseInt(document.getElementById('emaSlow').value);
+  config.rsiPeriod = parseInt(document.getElementById('rsiPeriod').value);
+  startTrading(config.apiToken);
+});
+
+function log(msg) {
+  document.getElementById('log').innerHTML += msg + '<br>';
 }
 
 function initSocket(apiToken) {
@@ -32,7 +31,7 @@ function initSocket(apiToken) {
   derivSocket.onopen = () => {
     derivSocket.send(JSON.stringify({ authorize: apiToken }));
     subscribeToTicks(config.symbol);
-    log("Socket connected and authorized.");
+    log("Connected and subscribed to " + config.symbol);
   };
   derivSocket.onmessage = handleMessage;
 }
@@ -54,8 +53,7 @@ function calculateRSI(data, period) {
   let gains = 0, losses = 0;
   for (let i = 1; i <= period; i++) {
     const diff = data[data.length - i] - data[data.length - i - 1];
-    if (diff > 0) gains += diff;
-    else losses -= diff;
+    if (diff > 0) gains += diff; else losses -= diff;
   }
   const rs = gains / (losses || 1);
   return 100 - (100 / (1 + rs));
@@ -69,13 +67,9 @@ function handleMessage(msg) {
     if (priceHistory.length > config.emaSlow + 2) priceHistory.shift();
     if (priceHistory.length >= config.emaSlow + 1) evaluateTrade();
   } else if (data.msg_type === "buy") {
-    activeTrade = {
-      id: data.buy.contract_id,
-      direction: data.buy.contract_type,
-      entryPrice: data.buy.buy_price
-    };
+    activeTrade = { id: data.buy.contract_id, direction: data.buy.contract_type, entryPrice: data.buy.buy_price };
     tradeLog.push({ ...activeTrade, timestamp: Date.now() });
-    log(`Trade opened: ${activeTrade.direction} @ ${activeTrade.entryPrice}`);
+    log("Trade opened: " + JSON.stringify(activeTrade));
   } else if (data.msg_type === "proposal_open_contract") {
     const contract = data.proposal_open_contract;
     if (!contract.is_valid_to_sell) return;
@@ -84,12 +78,11 @@ function handleMessage(msg) {
       derivSocket.send(JSON.stringify({ sell: contract.contract_id, price: contract.bid_price }));
       activeTrade = null;
       tradeCount++;
-      if (pnl > 0) dailyProfit += pnl;
-      else dailyLoss -= pnl;
-      log(`Trade closed. PnL: ${pnl}`);
+      pnl > 0 ? dailyProfit += pnl : dailyLoss -= pnl;
+      log("Trade closed with PnL: " + pnl.toFixed(2));
     }
   } else if (data.msg_type === "sell") {
-    log("Trade fully settled.");
+    log("Sell confirmation: " + JSON.stringify(data));
   }
 }
 
@@ -98,50 +91,15 @@ function evaluateTrade() {
   const ema10 = calculateEMA(priceHistory, config.emaFast);
   const ema20 = calculateEMA(priceHistory, config.emaSlow);
   const rsi = calculateRSI(priceHistory, config.rsiPeriod);
-  if (ema10 > ema20 && rsi < 70) {
-    openTrade("CALL");
-  } else if (ema10 < ema20 && rsi > 30) {
-    openTrade("PUT");
-  }
+  if (ema10 > ema20 && rsi < 70) openTrade("CALL");
+  else if (ema10 < ema20 && rsi > 30) openTrade("PUT");
 }
 
 function openTrade(direction) {
-  derivSocket.send(JSON.stringify({
-    buy: 1,
-    price: config.stake,
-    parameters: {
-      amount: config.stake,
-      basis: "stake",
-      contract_type: direction,
-      currency: "USD",
-      duration: 5,
-      duration_unit: "t",
-      symbol: config.symbol
-    }
-  }));
+  derivSocket.send(JSON.stringify({ buy: 1, price: config.stake, parameters: { amount: config.stake, basis: "stake", contract_type: direction, currency: "USD", duration: 5, duration_unit: "t", symbol: config.symbol } }));
 }
 
-function updateSettings(newSettings) {
-  Object.assign(config, newSettings);
-}
-
-function start() {
-  const token = document.getElementById("token").value;
-  const symbol = document.getElementById("symbol").value;
-  if (!token) {
-    alert("Enter your API token.");
-    return;
-  }
-  updateSettings({ apiToken: token, symbol: symbol });
-  startTrading(token);
-}
-
-function startTrading(token) {
-  config.apiToken = token;
-  initSocket(token);
-}
-
-function stop() {
+function stopTrading() {
   if (derivSocket) derivSocket.close();
   activeTrade = null;
   priceHistory = [];
