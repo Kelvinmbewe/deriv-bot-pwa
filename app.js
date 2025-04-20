@@ -1,5 +1,5 @@
 
-const config = {
+let config = {
   apiToken: '',
   symbol: 'R_10',
   stake: 1.0,
@@ -10,64 +10,55 @@ const config = {
   dailyLossCap: 10.0,
   emaFast: 10,
   emaSlow: 20,
-  rsiPeriod: 14
+  rsiPeriod: 14,
 };
 
-let tradeCount = 0, dailyProfit = 0, dailyLoss = 0;
-let activeTrade = null, tradeLog = [], priceHistory = [], derivSocket;
+let derivSocket, tradeCount = 0, dailyProfit = 0, dailyLoss = 0, activeTrade = null, tradeLog = [], priceHistory = [];
 
-function log(msg) {
-  const logDiv = document.getElementById('log');
-  logDiv.textContent += msg + '\n';
-  logDiv.scrollTop = logDiv.scrollHeight;
+function logMessage(msg) {
+  const logBox = document.getElementById("log");
+  logBox.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+  logBox.scrollTop = logBox.scrollHeight;
 }
 
-function initSocket(apiToken) {
+function initSocket(token) {
   derivSocket = new WebSocket("wss://ws.deriv.com/websockets/v3/websocket.json");
 
   derivSocket.onopen = () => {
     logMessage("WebSocket connected. Authorizing...");
-    derivSocket.send(JSON.stringify({ authorize: apiToken }));
-    subscribeToTicks(config.symbol);
+    derivSocket.send(JSON.stringify({ authorize: token }));
   };
 
-  derivSocket.onerror = (error) => {
-    logMessage("WebSocket error: Could not connect. Check API token or internet.");
-    console.error("WebSocket Error:", error);
-    toggleStartStopButtons(false);
-  };
-
-  derivSocket.onclose = () => {
-    logMessage("WebSocket connection closed.");
-    toggleStartStopButtons(false);
-  };
-
-  derivSocket.onmessage = handleMessage;
+  derivSocket.onmessage = (msg) => handleMessage(JSON.parse(msg.data));
 }
 
-function handleMessage(msg) {
-  const data = JSON.parse(msg.data);
-
+function handleMessage(data) {
   if (data.error) {
-    logMessage(`Error: ${data.error.message}`);
+    logMessage("Error: " + data.error.message);
     stopTrading();
     return;
   }
 
   if (data.msg_type === "authorize") {
-    logMessage("Authorization successful. Trading will start...");
+    logMessage("Authorization successful.");
+    subscribeToTicks(config.symbol);
     return;
-    
-  } else if (data.msg_type === "tick") {
+  }
+
+  if (data.msg_type === "tick") {
     const price = parseFloat(data.tick.quote);
     priceHistory.push(price);
     if (priceHistory.length > config.emaSlow + 2) priceHistory.shift();
     if (priceHistory.length >= config.emaSlow + 1) evaluateTrade();
-  } else if (data.msg_type === "buy") {
+  }
+
+  if (data.msg_type === "buy") {
     activeTrade = { id: data.buy.contract_id, direction: data.buy.contract_type, entryPrice: data.buy.buy_price };
     tradeLog.push({ ...activeTrade, timestamp: Date.now() });
-    log("Trade opened: " + activeTrade.direction + " @ " + activeTrade.entryPrice);
-  } else if (data.msg_type === "proposal_open_contract") {
+    logMessage("Trade opened: " + activeTrade.direction);
+  }
+
+  if (data.msg_type === "proposal_open_contract") {
     const contract = data.proposal_open_contract;
     if (!contract.is_valid_to_sell) return;
     const pnl = contract.profit;
@@ -75,30 +66,15 @@ function handleMessage(msg) {
       derivSocket.send(JSON.stringify({ sell: contract.contract_id, price: contract.bid_price }));
       activeTrade = null;
       tradeCount++;
-      pnl > 0 ? dailyProfit += pnl : dailyLoss -= pnl;
-      log("Trade closed: PnL = " + pnl);
+      if (pnl > 0) dailyProfit += pnl; else dailyLoss -= pnl;
+      logMessage("Trade closed with PnL: " + pnl.toFixed(2));
     }
-  } else if (data.msg_type === "sell") {
-    log("Trade finalized.");
-  } else if (data.msg_type === "error") {
-    log("Error: " + data.error.message);
-    document.getElementById("startBtn").disabled = false;
-    document.getElementById("stopBtn").disabled = true;
-  }
-}
-
-function logMessage(message) {
-  const logBox = document.getElementById("log");
-  if (logBox) {
-    const time = new Date().toLocaleTimeString();
-    logBox.value += `[${time}] ${message}\n`;
-    logBox.scrollTop = logBox.scrollHeight;
   }
 }
 
 function subscribeToTicks(symbol) {
   derivSocket.send(JSON.stringify({ ticks: symbol }));
-  log("Subscribed to ticks for " + symbol);
+  logMessage("Subscribed to " + symbol);
 }
 
 function calculateEMA(data, period) {
@@ -146,32 +122,30 @@ function openTrade(direction) {
   }));
 }
 
-document.getElementById("startBtn").onclick = () => {
-  config.apiToken = document.getElementById("token").value;
+function startTrading() {
+  config.apiToken = document.getElementById("apiToken").value;
   config.symbol = document.getElementById("symbol").value;
   config.stake = parseFloat(document.getElementById("stake").value);
-  config.takeProfit = parseFloat(document.getElementById("tp").value);
-  config.stopLoss = parseFloat(document.getElementById("sl").value);
+  config.takeProfit = parseFloat(document.getElementById("takeProfit").value);
+  config.stopLoss = parseFloat(document.getElementById("stopLoss").value);
   config.maxTradesPerDay = parseInt(document.getElementById("maxTrades").value);
   config.dailyProfitCap = parseFloat(document.getElementById("profitCap").value);
   config.dailyLossCap = parseFloat(document.getElementById("lossCap").value);
 
-  if (!config.apiToken) {
-    log("API token is required!");
-    return;
-  }
-
   document.getElementById("startBtn").disabled = true;
   document.getElementById("stopBtn").disabled = false;
-  log("Starting trading...");
+  logMessage("Start trading...");
   initSocket(config.apiToken);
-};
+}
 
-document.getElementById("stopBtn").onclick = () => {
+function stopTrading() {
   if (derivSocket) derivSocket.close();
-  document.getElementById("startBtn").disabled = false;
-  document.getElementById("stopBtn").disabled = true;
   activeTrade = null;
   priceHistory = [];
-  log("Stopped trading.");
-};
+  logMessage("Stopped trading.");
+  document.getElementById("startBtn").disabled = false;
+  document.getElementById("stopBtn").disabled = true;
+}
+
+document.getElementById("startBtn").addEventListener("click", startTrading);
+document.getElementById("stopBtn").addEventListener("click", stopTrading);
