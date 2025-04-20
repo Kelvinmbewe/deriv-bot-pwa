@@ -47,9 +47,17 @@ function initSocket(apiToken) {
 
 function handleMessage(msg) {
   const data = JSON.parse(msg.data);
+
+  if (data.error) {
+    logMessage(`Error: ${data.error.message}`);
+    stopTrading();
+    return;
+  }
+
   if (data.msg_type === "authorize") {
-    log("Authorization successful.");
-    subscribeToTicks(config.symbol);
+    logMessage("Authorization successful. Trading will start...");
+    return;
+    
   } else if (data.msg_type === "tick") {
     const price = parseFloat(data.tick.quote);
     priceHistory.push(price);
