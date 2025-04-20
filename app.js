@@ -22,14 +22,27 @@ function log(msg) {
   logDiv.scrollTop = logDiv.scrollHeight;
 }
 
-function initSocket(token) {
+function initSocket(apiToken) {
   derivSocket = new WebSocket("wss://ws.deriv.com/websockets/v3/websocket.json");
+
   derivSocket.onopen = () => {
-    log("Socket connected.");
-    derivSocket.send(JSON.stringify({ authorize: token }));
+    logMessage("WebSocket connected. Authorizing...");
+    derivSocket.send(JSON.stringify({ authorize: apiToken }));
+    subscribeToTicks(config.symbol);
   };
+
+  derivSocket.onerror = (error) => {
+    logMessage("WebSocket error: Could not connect. Check API token or internet.");
+    console.error("WebSocket Error:", error);
+    toggleStartStopButtons(false);
+  };
+
+  derivSocket.onclose = () => {
+    logMessage("WebSocket connection closed.");
+    toggleStartStopButtons(false);
+  };
+
   derivSocket.onmessage = handleMessage;
-  derivSocket.onerror = (e) => log("WebSocket error: " + e.message);
 }
 
 function handleMessage(msg) {
@@ -63,6 +76,15 @@ function handleMessage(msg) {
     log("Error: " + data.error.message);
     document.getElementById("startBtn").disabled = false;
     document.getElementById("stopBtn").disabled = true;
+  }
+}
+
+function logMessage(message) {
+  const logBox = document.getElementById("log");
+  if (logBox) {
+    const time = new Date().toLocaleTimeString();
+    logBox.value += `[${time}] ${message}\n`;
+    logBox.scrollTop = logBox.scrollHeight;
   }
 }
 
