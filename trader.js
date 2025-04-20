@@ -45,16 +45,22 @@ function initSocket(token) {
     };
 
     derivSocket.onerror = (err) => {
-        logMessage("WebSocket Error: " + JSON.stringify(err));
+        logMessage("WebSocket Error: Connection issue. Please check your network, HTTPS, or token validity.");
+        console.error("WebSocket error event:", err);
     };
 
-    derivSocket.onclose = () => {
-        logMessage("WebSocket connection closed.");
+    derivSocket.onclose = (event) => {
+        logMessage("WebSocket connection closed (code: " + event.code + ", reason: " + event.reason + ")");
     };
 
     derivSocket.onmessage = (msg) => {
         const data = JSON.parse(msg.data);
+        console.log("WebSocket message:", data);
         logMessage("Received: " + data.msg_type);
+        if (data.error) {
+            logMessage("Error: " + data.error.message);
+            stopTrading();
+        }
         if (data.msg_type === "authorize") {
             logMessage("Authorization successful: " + data.authorize.loginid);
             subscribeToTicks(config.symbol);
@@ -69,3 +75,8 @@ function subscribeToTicks(symbol) {
     logMessage("Subscribing to ticks for " + symbol);
     derivSocket.send(JSON.stringify({ ticks: symbol }));
 }
+
+window.onload = () => {
+    document.getElementById("startBtn").addEventListener("click", startTrading);
+    document.getElementById("stopBtn").addEventListener("click", stopTrading);
+};
