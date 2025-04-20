@@ -1,40 +1,60 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Deriv Auto-Trader</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
-        input, select, button { padding: 10px; margin: 5px 0; width: 100%; }
-        #log { margin-top: 20px; padding: 10px; background: #fff; border: 1px solid #ccc; height: 200px; overflow-y: scroll; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deriv Auto Trader</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    h2 { color: #333; }
+    label { display: block; margin-top: 10px; }
+    input, select { padding: 8px; margin-top: 5px; width: 100%; max-width: 400px; }
+    button { padding: 10px 20px; margin-top: 15px; }
+    #log { margin-top: 20px; white-space: pre-wrap; background: #fff; padding: 10px; border: 1px solid #ccc; }
+  </style>
 </head>
 <body>
-    <h2>Deriv Auto-Trader</h2>
-    <form id="settingsForm">
-        <input type="text" id="apiToken" placeholder="Enter API Token" required>
-        <select id="symbol">
-            <option value="R_10">Volatility 10</option>
-            <option value="R_25">Volatility 25</option>
-            <option value="R_50">Volatility 50</option>
-            <option value="R_75">Volatility 75</option>
-            <option value="R_100">Volatility 100</option>
-            <option value="BOOM1000">Boom 1000</option>
-            <option value="BOOM500">Boom 500</option>
-            <option value="CRASH1000">Crash 1000</option>
-            <option value="CRASH500">Crash 500</option>
-        </select>
-        <input type="number" id="stake" placeholder="Stake Amount" value="1.0" step="0.01">
-        <input type="number" id="takeProfit" placeholder="Take Profit" value="2.0" step="0.01">
-        <input type="number" id="stopLoss" placeholder="Stop Loss" value="2.0" step="0.01">
-        <input type="number" id="maxTradesPerDay" placeholder="Max Trades/Day" value="5">
-        <input type="number" id="dailyProfitCap" placeholder="Daily Profit Cap" value="10.0" step="0.01">
-        <input type="number" id="dailyLossCap" placeholder="Daily Loss Cap" value="10.0" step="0.01">
-        <button type="submit" id="startBtn">Start Trading</button>
-        <button type="button" id="stopBtn" disabled>Stop Trading</button>
-    </form>
-    <div id="log"></div>
-    <script src="bot.js"></script>
+  <h2>Deriv Auto Trader</h2>
+  <label for="token">API Token</label>
+  <input type="text" id="token" placeholder="Enter your Deriv API token">
+
+  <label for="symbol">Symbol</label>
+  <select id="symbol">
+    <option value="R_10">Volatility 10 Index</option>
+    <option value="R_25">Volatility 25 Index</option>
+    <option value="R_50">Volatility 50 Index</option>
+    <option value="R_75">Volatility 75 Index</option>
+    <option value="R_100">Volatility 100 Index</option>
+    <option value="BOOM1000">Boom 1000 Index</option>
+    <option value="CRASH1000">Crash 1000 Index</option>
+    <option value="BOOM500">Boom 500 Index</option>
+    <option value="CRASH500">Crash 500 Index</option>
+  </select>
+
+  <label for="stake">Stake</label>
+  <input type="number" id="stake" value="1">
+
+  <label for="tp">Take Profit ($)</label>
+  <input type="number" id="tp" value="2">
+
+  <label for="sl">Stop Loss ($)</label>
+  <input type="number" id="sl" value="2">
+
+  <label for="maxTrades">Max Trades/Day</label>
+  <input type="number" id="maxTrades" value="5">
+
+  <label for="profitCap">Daily Profit Cap ($)</label>
+  <input type="number" id="profitCap" value="10">
+
+  <label for="lossCap">Daily Loss Cap ($)</label>
+  <input type="number" id="lossCap" value="10">
+
+  <button id="startBtn">Start Trading</button>
+  <button id="stopBtn" disabled>Stop</button>
+
+  <div id="log"></div>
+
+  <script src="app.js"></script>
 </body>
 </html>
